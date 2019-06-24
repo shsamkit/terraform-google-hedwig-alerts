@@ -1,9 +1,9 @@
-output "subscription_path" {
-  value       = "${google_pubsub_subscription.subscription.path}"
-  description = "Path of the Subscription"
+output "high_message_count_alert_path" {
+  value       = "${google_monitoring_alert_policy.high_message_alert.name}"
+  description = "Path of the high message count alert"
 }
 
-output "subscription_name" {
-  value       = "${google_pubsub_subscription.subscription.name}"
-  description = "Name of the Subscription"
+output "dlq_alert_path" {
+  value       = "${google_monitoring_alert_policy.dlq_alert.name}"
+  description = "Path of the DLQ alert"
 }

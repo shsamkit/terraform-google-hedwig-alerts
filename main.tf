@@ -1,9 +1,70 @@
-resource "google_pubsub_subscription" "subscription" {
-  // topic name already has the `hedwig-` prefix which doesn't need to be duplicated.
-  name  = "hedwig-${var.queue}-${substr(var.topic, length("hedwig-"), -1)}"
-  topic = "${var.topic}"
+data google_project current {}
 
-  ack_deadline_seconds = 20
+locals {
+  title_suffix = "${var.alerting_project != data.google_project.current.project_id ? format(" (%s)", data.google_project.current.name) : ""}"
+  filter_suffix = "${var.alerting_project != data.google_project.current.project_id ? format(" resource.label.\\\"project_id\\\"=\\\"%s\\\"", data.google_project.current.project_id) : ""}"
+}
 
-  labels = "${var.labels}"
+resource "google_monitoring_alert_policy" "high_message_alert" {
+  project = "${var.alerting_project}"
+
+  display_name = "${title(var.subscription_name)} Hedwig queue message count too high${local.title_suffix}"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "${title(var.subscription_name)} Hedwig queue message count too high${local.title_suffix}"
+
+    condition_threshold {
+      threshold_value = "${var.queue_alarm_high_message_count_threshold}" // Number of messages
+      comparison      = "COMPARISON_GT"
+      duration        = "300s"                                            // Seconds
+
+      filter = "metric.type=\"pubsub.googleapis.com/subscription/num_undelivered_messages\" resource.type=\"pubsub_subscription\" resource.label.\"subscription_id\"=\"${var.subscription_name}\"${local.filter_suffix}"
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_MEAN"
+      }
+
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  notification_channels = "${var.queue_high_message_count_notification_channels}"
+
+  user_labels = "${var.labels}"
+}
+
+resource "google_monitoring_alert_policy" "dlq_alert" {
+  project = "${var.alerting_project}"
+
+  display_name = "${title(var.subscription_name)} Hedwig DLQ is non-empty${local.title_suffix}"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "${title(var.subscription_name)} Hedwig DLQ is non-empty${local.title_suffix}"
+
+    condition_threshold {
+      threshold_value = "1"             // Number of messages
+      comparison      = "COMPARISON_GT"
+      duration        = "60s"           // Seconds
+
+      filter = "metric.type=\"pubsub.googleapis.com/subscription/num_undelivered_messages\" resource.type=\"pubsub_subscription\" resource.label.\"subscription_id\"=\"${var.subscription_name}\"${local.filter_suffix}"
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_SUM"
+      }
+
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  notification_channels = "${var.dlq_high_message_count_notification_channels}"
+
+  user_labels = "${var.labels}"
 }
