@@ -1,7 +1,7 @@
 data google_project current {}
 
 locals {
-  title_suffix = "${var.alerting_project != data.google_project.current.project_id ? format(" (%s)", data.google_project.current.name) : ""}"
+  title_suffix  = "${var.alerting_project != data.google_project.current.project_id ? format(" (%s)", data.google_project.current.name) : ""}"
   filter_suffix = "${var.alerting_project != data.google_project.current.project_id ? format(" resource.label.\\\"project_id\\\"=\\\"%s\\\"", data.google_project.current.project_id) : ""}"
 }
 
@@ -38,20 +38,22 @@ resource "google_monitoring_alert_policy" "high_message_alert" {
 }
 
 resource "google_monitoring_alert_policy" "dlq_alert" {
+  count = "${var.dlq_subscription_name == "" ? 0 : 1}"
+
   project = "${var.alerting_project}"
 
-  display_name = "${title(var.subscription_name)} Hedwig DLQ is non-empty${local.title_suffix}"
+  display_name = "${title(var.dlq_subscription_name)} Hedwig DLQ is non-empty${local.title_suffix}"
   combiner     = "OR"
 
   conditions {
-    display_name = "${title(var.subscription_name)} Hedwig DLQ is non-empty${local.title_suffix}"
+    display_name = "${title(var.dlq_subscription_name)} Hedwig DLQ is non-empty${local.title_suffix}"
 
     condition_threshold {
       threshold_value = "1"             // Number of messages
       comparison      = "COMPARISON_GT"
       duration        = "60s"           // Seconds
 
-      filter = "metric.type=\"pubsub.googleapis.com/subscription/num_undelivered_messages\" resource.type=\"pubsub_subscription\" resource.label.\"subscription_id\"=\"${var.subscription_name}\"${local.filter_suffix}"
+      filter = "metric.type=\"pubsub.googleapis.com/subscription/num_undelivered_messages\" resource.type=\"pubsub_subscription\" resource.label.\"subscription_id\"=\"${var.dlq_subscription_name}\"${local.filter_suffix}"
 
       aggregations {
         alignment_period   = "60s"
