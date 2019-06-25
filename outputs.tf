@@ -4,6 +4,6 @@ output "high_message_count_alert_path" {
 }
 
 output "dlq_alert_path" {
-  value       = "${google_monitoring_alert_policy.dlq_alert.name}"
+  value       = "${join("", google_monitoring_alert_policy.dlq_alert.*.name)}"
   description = "Path of the DLQ alert"
 }
